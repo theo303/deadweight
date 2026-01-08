@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/theo303/deadweight/lsp"
 )
 
 type lspClient struct {
@@ -100,9 +102,7 @@ func (lc *lspClient) Wait() {
 	slog.Info("lsp client exited")
 }
 
-func (lc *lspClient) ListDocumentSymbols(ctx context.Context, filePath string,
-	wg *sync.WaitGroup, symbols *SymbolMap,
-) error {
+func (lc *lspClient) ListDocumentSymbols(filePath string, wg *sync.WaitGroup, symbols *SymbolMap) error {
 
 	if err := lc.sendCommand("textDocument/documentSymbol",
 		map[string]any{
@@ -110,7 +110,7 @@ func (lc *lspClient) ListDocumentSymbols(ctx context.Context, filePath string,
 				"uri": lc.root + "/" + filePath,
 			},
 		},
-		documentSymbolResponse(wg, symbols, filePath),
+		lc.documentSymbolResponse(wg, symbols, filePath),
 	); err != nil {
 		wg.Done()
 		return fmt.Errorf("failed to send workspace/symbol command: %w", err)
@@ -118,8 +118,36 @@ func (lc *lspClient) ListDocumentSymbols(ctx context.Context, filePath string,
 	return nil
 }
 
-func (lc *lspClient) References(ctx context.Context, wg *sync.WaitGroup,
-	filePath string, symbol Symbol, unusedSymbols *SymbolMap,
+func (lc *lspClient) ReferencesSymbols(allSymbols *SymbolMap) (*ReferenceMap, error) {
+	defer allSymbols.Unlock()
+
+	wg := &sync.WaitGroup{}
+	references := NewReferenceMap()
+
+	allSymbols.Lock()
+	for filePath, symbols := range allSymbols.m {
+		for _, symbol := range symbols {
+			wg.Add(1)
+			if err := lc.references(
+				wg,
+				references,
+				filePath,
+				symbol,
+			); err != nil {
+				return nil, err
+			}
+		}
+	}
+	wg.Wait()
+
+	return references, nil
+}
+
+func (lc *lspClient) references(
+	wg *sync.WaitGroup,
+	references *ReferenceMap,
+	filePath string,
+	symbol Symbol,
 ) error {
 
 	if err := lc.sendCommand("textDocument/references",
@@ -131,13 +159,53 @@ func (lc *lspClient) References(ctx context.Context, wg *sync.WaitGroup,
 				"line":      symbol.Position.Line,
 				"character": symbol.Position.Character,
 			},
-			"context": map[string]any{},
+			"context": map[string]any{
+				"includeDeclaration": false,
+			},
 		},
-		referencesResponse(wg, filePath, symbol, unusedSymbols),
+		referencesResponse(wg, references, filePath, symbol),
 	); err != nil {
 		wg.Done()
 		return fmt.Errorf("failed to send textDocument/references command: %w", err)
 	}
+	return nil
+}
+
+func (lc *lspClient) isEmbedded(filePath string, documentSymbol lsp.DocumentSymbol) (bool, error) {
+	if documentSymbol.Kind != lsp.SymbolKindField {
+		return false, nil
+	}
+	detailSplit := strings.Split(documentSymbol.Detail, ".")
+	if detailSplit[len(detailSplit)-1] != documentSymbol.Name {
+		return false, nil
+	}
+
+	hasParentType := make(chan bool)
+	defer close(hasParentType)
+
+	pos := documentSymbol.SelectionRange.Start
+	if err := lc.PrepareTypeHierarchy(filePath, pos, hasParentType); err != nil {
+		return false, err
+	}
+	return <-hasParentType, nil
+}
+
+func (lc *lspClient) PrepareTypeHierarchy(filePath string, position lsp.Position, hasParentType chan bool) error {
+
+	if err := lc.sendCommand("textDocument/prepareTypeHierarchy", map[string]any{
+		"textDocument": map[string]any{
+			"uri": lc.root + "/" + filePath,
+		},
+		"position": map[string]any{
+			"line":      position.Line,
+			"character": position.Character,
+		},
+	},
+		prepareTypeHierarchyResponse(hasParentType),
+	); err != nil {
+		return fmt.Errorf("failed to send textDocument/prepareTypeHierarchy command: %w", err)
+	}
+
 	return nil
 }
 
@@ -202,7 +270,7 @@ func (lc *lspClient) readStdOut(r io.Reader) {
 				continue
 			}
 
-			var msg message
+			var msg lsp.Message
 			if err := json.Unmarshal(body, &msg); err != nil {
 				slog.Error("failed to unmarshal message", slog.Any("error", err))
 				continue
@@ -213,13 +281,12 @@ func (lc *lspClient) readStdOut(r io.Reader) {
 				continue
 			}
 
-			value, ok := lc.pendingMessages.Load(msg.ID)
+			value, ok := lc.pendingMessages.LoadAndDelete(msg.ID)
 			if !ok {
 				slog.Debug("id not in map, ignored", slog.Any("id", msg.ID))
 				continue
 			}
-			value.(messageHandler)(msg)
-			lc.pendingMessages.Delete(msg.ID)
+			go value.(messageHandler)(msg)
 		}
 	})
 }

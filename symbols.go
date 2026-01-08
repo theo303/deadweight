@@ -1,31 +1,32 @@
 package deadweight
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
+
+	"github.com/theo303/deadweight/lsp"
 )
 
-type Position struct {
-	Line      int `json:"line"`
-	Character int `json:"character"`
+type Symbol struct {
+	Position lsp.Position
+	Name     string
+	Kind     int
 }
 
-type Symbol struct {
-	Position Position `json:"position"`
-	Name     string   `json:"name"`
-	Kind     int      `json:"kind"`
+func NewSymbol(documentSymbol lsp.DocumentSymbol) Symbol {
+	return Symbol{
+		Position: documentSymbol.SelectionRange.Start,
+		Name:     documentSymbol.Name,
+		Kind:     documentSymbol.Kind,
+	}
 }
 
 type SymbolMap struct {
 	m map[string][]Symbol
 
 	sync.Mutex
-}
-
-type Test struct {
 }
 
 func NewSymbolMap() *SymbolMap {
@@ -64,28 +65,4 @@ func (sm *SymbolMap) Print() {
 		}
 		slog.Info(filePath, slog.Any("symbols", strings.Join(symbolsStr, "; ")))
 	}
-}
-
-func (sm *SymbolMap) ReferencesSymbols(ctx context.Context, lc *lspClient) (*SymbolMap, error) {
-	defer sm.Unlock()
-
-	wg := &sync.WaitGroup{}
-	unusedSymbols := NewSymbolMap()
-
-	sm.Lock()
-	for filePath, symbols := range sm.m {
-		for _, symbol := range symbols {
-			wg.Add(1)
-			if err := lc.References(ctx, wg,
-				filePath,
-				symbol,
-				unusedSymbols,
-			); err != nil {
-				return nil, err
-			}
-		}
-	}
-	wg.Wait()
-
-	return unusedSymbols, nil
 }

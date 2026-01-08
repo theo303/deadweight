@@ -13,7 +13,7 @@ import (
 	"github.com/theo303/deadweight"
 )
 
-var debugMode = true
+var debugMode = false
 
 func files(current string) []string {
 	if len(os.Args) > 1 {
@@ -79,7 +79,7 @@ func main() {
 	for _, file := range files {
 		wg.Add(1)
 		go func() {
-			if err := lc.ListDocumentSymbols(ctx, file, wg, allSymbols); err != nil {
+			if err := lc.ListDocumentSymbols(file, wg, allSymbols); err != nil {
 				slog.Error("failed to list workspace symbols", slog.Any("error", err))
 				os.Exit(1)
 			}
@@ -91,14 +91,14 @@ func main() {
 		allSymbols.Print()
 	}
 
-	unusedSymbols, err := allSymbols.ReferencesSymbols(ctx, lc)
+	references, err := lc.ReferencesSymbols(allSymbols)
 	if err != nil {
 		slog.Error("failed to reference symbols", slog.Any("error", err))
 		os.Exit(1)
 	}
 
 	slog.Info("unused symbols found")
-	unusedSymbols.Print()
+	references.GetUnusedSymbols().Print()
 
 	stop()
 	lc.Wait()
