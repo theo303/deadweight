@@ -3,7 +3,6 @@ package deadweight
 import (
 	"fmt"
 	"log/slog"
-	"strings"
 	"sync"
 
 	"github.com/theo303/deadweight/lsp"
@@ -12,7 +11,9 @@ import (
 type Symbol struct {
 	Position lsp.Position
 	Name     string
-	Kind     int
+	Kind     lsp.SymbolKind
+
+	IsEmbeddedField bool
 }
 
 func NewSymbol(documentSymbol lsp.DocumentSymbol) Symbol {
@@ -55,14 +56,10 @@ func (sm *SymbolMap) Print() {
 
 	sm.Lock()
 	for filePath, symbols := range sm.m {
-		symbolsStr := make([]string, 0, len(symbols))
 		for _, symbol := range symbols {
-			symbolsStr = append(symbolsStr,
-				fmt.Sprintf("%s %d:%d (%d)",
-					symbol.Name, symbol.Position.Line, symbol.Position.Character, symbol.Kind,
-				),
-			)
+			slog.Info(fmt.Sprintf("%s (%s) %s:%d:%d",
+				symbol.Name, symbol.Kind.String(), filePath, symbol.Position.Line+1, symbol.Position.Character+1,
+			))
 		}
-		slog.Info(filePath, slog.Any("symbols", strings.Join(symbolsStr, "; ")))
 	}
 }

@@ -28,9 +28,11 @@ type lspClient struct {
 	idCounter       atomic.Int32
 
 	root string
+
+	rules Rules
 }
 
-func NewLSPClient(ctx context.Context, root string) (*lspClient, error) {
+func NewLSPClient(ctx context.Context, root string, rules Rules) (*lspClient, error) {
 	cmd := exec.CommandContext(ctx, "gopls", "-vv")
 
 	lc := &lspClient{
@@ -39,6 +41,7 @@ func NewLSPClient(ctx context.Context, root string) (*lspClient, error) {
 		ready:           make(chan struct{}, 1),
 		pendingMessages: sync.Map{},
 		root:            root,
+		rules:           rules,
 	}
 
 	pipeOut, err := cmd.StdoutPipe()

@@ -12,7 +12,6 @@ type messageHandler func(lsp.Message)
 
 func initializeResponse(ready chan struct{}) messageHandler {
 	return func(m lsp.Message) {
-		slog.Info(string(m.Result))
 		ready <- struct{}{}
 	}
 }
@@ -38,9 +37,11 @@ func (lc *lspClient) documentSymbolResponse(wg *sync.WaitGroup, symbols *SymbolM
 			return
 		}
 		var fileSymbols []Symbol
+		var err error
 		for _, result := range results {
 			for _, symbol := range getAllSymbols(result) {
-				isEmbedded, err := lc.isEmbedded(filePath, symbol)
+				s := NewSymbol(symbol)
+				s.IsEmbeddedField, err = lc.isEmbedded(filePath, symbol)
 				if err != nil {
 					slog.Error("isEmbedded error, skipping symbol", slog.Any("error", err),
 						slog.String("filePath", filePath),
@@ -50,11 +51,9 @@ func (lc *lspClient) documentSymbolResponse(wg *sync.WaitGroup, symbols *SymbolM
 					)
 					continue
 				}
-				// skip embedded fields because show references doesn't work on them
-				if isEmbedded {
-					continue
+				if lc.rules.KeepSymbol(filePath, s) {
+					fileSymbols = append(fileSymbols, s)
 				}
-				fileSymbols = append(fileSymbols, NewSymbol(symbol))
 			}
 		}
 		symbols.Store(filePath, fileSymbols)

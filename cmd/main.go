@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/theo303/deadweight"
+	"github.com/theo303/deadweight/lsp"
 )
 
 var debugMode = false
@@ -60,7 +61,15 @@ func main() {
 		panic(err)
 	}
 
-	lc, err := deadweight.NewLSPClient(ctx, "file://"+current)
+	lc, err := deadweight.NewLSPClient(ctx, "file://"+current, deadweight.Rules{
+		IgnoreRules: []deadweight.IgnoreRule{
+			{
+				Kinds: []lsp.SymbolKind{lsp.SymbolKindMethod},
+				Names: []string{"*Scan", "*Value", "UnmarshalJSON", "MarshalJSON"},
+			},
+		},
+		IgnoreEmbeddedFields: true,
+	})
 	if err != nil {
 		slog.Error("failed to initialize LSP client", slog.Any("error", err))
 		os.Exit(1)
