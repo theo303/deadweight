@@ -8,6 +8,9 @@ import (
 	"github.com/theo303/deadweight/lsp"
 )
 
+type Test struct {
+}
+
 type Symbol struct {
 	Position lsp.Position
 	Name     string
@@ -49,6 +52,16 @@ func (sm *SymbolMap) Add(filepath string, symbol Symbol) {
 		sm.m[filepath] = make([]Symbol, 0)
 	}
 	sm.m[filepath] = append(sm.m[filepath], symbol)
+}
+
+func (sm *SymbolMap) Len() int {
+	if sm == nil {
+		return 0
+	}
+
+	defer sm.Unlock()
+	sm.Lock()
+	return len(sm.m)
 }
 
 func (sm *SymbolMap) Print() {

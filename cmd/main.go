@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -10,14 +11,18 @@ import (
 	"strings"
 	"sync"
 
+	"flag"
+
+	yaml "github.com/goccy/go-yaml"
 	"github.com/theo303/deadweight"
-	"github.com/theo303/deadweight/lsp"
 )
 
-var debugMode = false
+var debugFlag = flag.Bool("d", false, "debug mode")
+var configFlag = flag.String("c", "", "config file")
 
 func files(current string) []string {
-	if len(os.Args) > 1 {
+	if len(flag.Args()) > 0 {
+		fmt.Println(os.Args[1:])
 		return os.Args[1:]
 	}
 
@@ -49,9 +54,35 @@ func files(current string) []string {
 	return goFiles
 }
 
+func loadConfig(current string) (deadweight.Rules, error) {
+	var configFile string
+	if configFlag != nil && *configFlag != "" {
+		configFile = *configFlag
+	} else {
+		configFile = filepath.Join(current, ".deadweight.yaml")
+		if _, err := os.Stat(configFile); os.IsNotExist(err) {
+			configFile = ""
+		}
+	}
+	var rules deadweight.Rules
+	if configFile != "" {
+		content, err := os.ReadFile(configFile)
+		if err != nil {
+			return deadweight.Rules{}, fmt.Errorf("reading config file %s: %w", configFile, err)
+		}
+		if err := yaml.Unmarshal(content, &rules); err != nil {
+			return deadweight.Rules{}, fmt.Errorf("unmarshaling config file %s: %w", configFile, err)
+		}
+	}
+	return rules, nil
+}
+
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
 
+	flag.Parse()
+
+	debugMode := debugFlag != nil && *debugFlag
 	if debugMode {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
 	}
@@ -61,15 +92,12 @@ func main() {
 		panic(err)
 	}
 
-	lc, err := deadweight.NewLSPClient(ctx, "file://"+current, deadweight.Rules{
-		IgnoreRules: []deadweight.IgnoreRule{
-			{
-				Kinds: []lsp.SymbolKind{lsp.SymbolKindMethod},
-				Names: []string{"*Scan", "*Value", "UnmarshalJSON", "MarshalJSON"},
-			},
-		},
-		IgnoreEmbeddedFields: true,
-	})
+	rules, err := loadConfig(current)
+	if err != nil {
+		panic(fmt.Errorf("loading config:%w", err))
+	}
+
+	lc, err := deadweight.NewLSPClient(ctx, "file://"+current, rules)
 	if err != nil {
 		slog.Error("failed to initialize LSP client", slog.Any("error", err))
 		os.Exit(1)
@@ -106,8 +134,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.Info("unused symbols found")
-	references.GetUnusedSymbols().Print()
+	unusedSymbols := references.GetUnusedSymbols()
+	if unusedSymbols.Len() > 0 {
+		slog.Info("unused symbols found:")
+		unusedSymbols.Print()
+	} else {
+		slog.Info("no unused symbols found")
+	}
 
 	stop()
 	lc.Wait()

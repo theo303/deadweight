@@ -17,6 +17,7 @@ type Position struct {
 
 type Range struct {
 	Start Position `json:"start"`
+	End   Position `json:"end"`
 }
 
 type Location struct {

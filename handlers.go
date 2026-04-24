@@ -74,8 +74,8 @@ func referencesResponse(wg *sync.WaitGroup, references *ReferenceMap, filePath s
 	}
 }
 
-func prepareTypeHierarchyResponse(hasParentType chan bool) messageHandler {
+func preparePositionHasSymbol(hasSymbol chan bool) messageHandler {
 	return func(m lsp.Message) {
-		hasParentType <- len(m.Result) != 0
+		hasSymbol <- len(m.Result) != 0
 	}
 }

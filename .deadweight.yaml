@@ -1,0 +1,15 @@
+ignore-embedded-fields: true
+
+ignore-rules:
+  - kinds: [6]
+    names:
+      - "*Scan"
+      - "*Value"
+      - "*UnmarshalJSON"
+      - "*MarshalJSON"
+      - "*String"
+
+  - kinds: [12]
+    names: ["init"]
+
+  # - kinds: [8, 14]

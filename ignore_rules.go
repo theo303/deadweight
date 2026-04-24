@@ -8,8 +8,8 @@ import (
 )
 
 type Rules struct {
-	IgnoreRules          []IgnoreRule
-	IgnoreEmbeddedFields bool
+	IgnoreRules          []IgnoreRule `yaml:"ignore-rules"`
+	IgnoreEmbeddedFields bool         `yaml:"ignore-embedded-fields"`
 }
 
 func (r Rules) KeepSymbol(filePath string, s Symbol) bool {
@@ -25,13 +25,16 @@ func (r Rules) KeepSymbol(filePath string, s Symbol) bool {
 }
 
 type IgnoreRule struct {
-	Kinds []lsp.SymbolKind
-	Names []string
+	Kinds []lsp.SymbolKind `yaml:"kinds"`
+	Names []string         `yaml:"names"`
 }
 
 func (ir IgnoreRule) ignore(_ string, s Symbol) bool {
 	if !slices.Contains(ir.Kinds, s.Kind) {
 		return false
+	}
+	if len(ir.Names) == 0 {
+		return true
 	}
 	for _, filter := range ir.Names {
 		if match, _ := filepath.Match(filter, s.Name); match {

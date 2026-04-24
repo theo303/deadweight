@@ -183,19 +183,29 @@ func (lc *lspClient) isEmbedded(filePath string, documentSymbol lsp.DocumentSymb
 		return false, nil
 	}
 
-	hasParentType := make(chan bool)
-	defer close(hasParentType)
+	// {
+	//   Mutex sync.Mutex
+	//   sync.Mutex
+	// }
+	// lsp command on end position + len(package) + 2
+	//  -> if error (column is beyond end of line) the field is embedded
 
-	pos := documentSymbol.SelectionRange.Start
-	if err := lc.PrepareTypeHierarchy(filePath, pos, hasParentType); err != nil {
+	packageName := detailSplit[0]
+
+	hasSymbol := make(chan bool)
+	defer close(hasSymbol)
+
+	pos := documentSymbol.SelectionRange.End
+	pos.Character += len(packageName) + 2
+	if err := lc.positionHasSymbol(filePath, pos, hasSymbol); err != nil {
 		return false, err
 	}
-	return <-hasParentType, nil
+	return !<-hasSymbol, nil
 }
 
-func (lc *lspClient) PrepareTypeHierarchy(filePath string, position lsp.Position, hasParentType chan bool) error {
+func (lc *lspClient) positionHasSymbol(filePath string, position lsp.Position, hasSymbol chan bool) error {
 
-	if err := lc.sendCommand("textDocument/prepareTypeHierarchy", map[string]any{
+	if err := lc.sendCommand("textDocument/definition", map[string]any{
 		"textDocument": map[string]any{
 			"uri": lc.root + "/" + filePath,
 		},
@@ -204,7 +214,7 @@ func (lc *lspClient) PrepareTypeHierarchy(filePath string, position lsp.Position
 			"character": position.Character,
 		},
 	},
-		prepareTypeHierarchyResponse(hasParentType),
+		preparePositionHasSymbol(hasSymbol),
 	); err != nil {
 		return fmt.Errorf("failed to send textDocument/prepareTypeHierarchy command: %w", err)
 	}
