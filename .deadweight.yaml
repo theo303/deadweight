@@ -1,7 +1,8 @@
 ignore-embedded-fields: true
 
-ignore-rules:
-  - kinds: [6]
+ignore-symbols:
+  - kinds:
+      - Method
     names:
       - "*Scan"
       - "*Value"
@@ -9,7 +10,6 @@ ignore-rules:
       - "*MarshalJSON"
       - "*String"
 
-  - kinds: [12]
-    names: ["init"]
-
-  # - kinds: [8, 14]
+  - kinds:
+      - Function
+    names: ["init", "main"]

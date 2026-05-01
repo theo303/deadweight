@@ -74,7 +74,7 @@ func referencesResponse(wg *sync.WaitGroup, references *ReferenceMap, filePath s
 	}
 }
 
-func preparePositionHasSymbol(hasSymbol chan bool) messageHandler {
+func positionHasSymbolResponse(hasSymbol chan bool) messageHandler {
 	return func(m lsp.Message) {
 		hasSymbol <- len(m.Result) != 0
 	}

@@ -67,7 +67,7 @@ func (lc *lspClient) RunAndInitialize(ctx context.Context) error {
 	if err := lc.cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start command: %w", err)
 	}
-	slog.Info("lsp client running")
+	slog.Debug("lsp client running")
 
 	if err := lc.sendCommand("initialize",
 		map[string]any{
@@ -102,7 +102,7 @@ func (lc *lspClient) RunAndInitialize(ctx context.Context) error {
 func (lc *lspClient) Wait() {
 	_ = lc.cmd.Wait()
 	lc.wg.Wait()
-	slog.Info("lsp client exited")
+	slog.Debug("lsp client exited")
 }
 
 func (lc *lspClient) ListDocumentSymbols(filePath string, wg *sync.WaitGroup, symbols *SymbolMap) error {
@@ -214,7 +214,7 @@ func (lc *lspClient) positionHasSymbol(filePath string, position lsp.Position, h
 			"character": position.Character,
 		},
 	},
-		preparePositionHasSymbol(hasSymbol),
+		positionHasSymbolResponse(hasSymbol),
 	); err != nil {
 		return fmt.Errorf("failed to send textDocument/prepareTypeHierarchy command: %w", err)
 	}

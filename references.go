@@ -33,7 +33,7 @@ func (rm *ReferenceMap) GetUnusedSymbols() *SymbolMap {
 
 	for filePath, symbols := range rm.m {
 		for symbol, references := range symbols {
-			if !isUsed(references) && symbol.Name != "main" {
+			if !isUsed(references) {
 				unusedSymbols.Add(filePath, symbol)
 			}
 		}

@@ -22,7 +22,6 @@ var configFlag = flag.String("c", "", "config file")
 
 func files(current string) []string {
 	if len(flag.Args()) > 0 {
-		fmt.Println(os.Args[1:])
 		return os.Args[1:]
 	}
 
@@ -64,15 +63,19 @@ func loadConfig(current string) (deadweight.Rules, error) {
 			configFile = ""
 		}
 	}
-	var rules deadweight.Rules
+	var config deadweight.Config
 	if configFile != "" {
 		content, err := os.ReadFile(configFile)
 		if err != nil {
 			return deadweight.Rules{}, fmt.Errorf("reading config file %s: %w", configFile, err)
 		}
-		if err := yaml.Unmarshal(content, &rules); err != nil {
+		if err := yaml.Unmarshal(content, &config); err != nil {
 			return deadweight.Rules{}, fmt.Errorf("unmarshaling config file %s: %w", configFile, err)
 		}
+	}
+	rules, err := config.ToRules()
+	if err != nil {
+		return deadweight.Rules{}, fmt.Errorf("converting config to rules: %w", err)
 	}
 	return rules, nil
 }

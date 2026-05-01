@@ -55,63 +55,49 @@ const (
 	SymbolKindTypeParameter SymbolKind = 26
 )
 
+var symbolKindNames = map[SymbolKind]string{
+	SymbolKindFile:          "File",
+	SymbolKindModule:        "Module",
+	SymbolKindNamespace:     "Namespace",
+	SymbolKindPackage:       "Package",
+	SymbolKindClass:         "Class",
+	SymbolKindMethod:        "Method",
+	SymbolKindProperty:      "Property",
+	SymbolKindField:         "Field",
+	SymbolKindConstructor:   "Constructor",
+	SymbolKindEnum:          "Enum",
+	SymbolKindInterface:     "Interface",
+	SymbolKindFunction:      "Function",
+	SymbolKindVariable:      "Variable",
+	SymbolKindConstant:      "Constant",
+	SymbolKindString:        "String",
+	SymbolKindNumber:        "Number",
+	SymbolKindBoolean:       "Boolean",
+	SymbolKindArray:         "Array",
+	SymbolKindObject:        "Object",
+	SymbolKindKey:           "Key",
+	SymbolKindNull:          "Null",
+	SymbolKindEnumMember:    "EnumMember",
+	SymbolKindStruct:        "Struct",
+	SymbolKindEvent:         "Event",
+	SymbolKindOperator:      "Operator",
+	SymbolKindTypeParameter: "TypeParameter",
+}
+
 func (sk SymbolKind) String() string {
-	switch sk {
-	case SymbolKindFile:
-		return "File"
-	case SymbolKindModule:
-		return "Module"
-	case SymbolKindNamespace:
-		return "Namespace"
-	case SymbolKindPackage:
-		return "Package"
-	case SymbolKindClass:
-		return "Class"
-	case SymbolKindMethod:
-		return "Method"
-	case SymbolKindProperty:
-		return "Property"
-	case SymbolKindField:
-		return "Field"
-	case SymbolKindConstructor:
-		return "Constructor"
-	case SymbolKindEnum:
-		return "Enum"
-	case SymbolKindInterface:
-		return "Interface"
-	case SymbolKindFunction:
-		return "Function"
-	case SymbolKindVariable:
-		return "Variable"
-	case SymbolKindConstant:
-		return "Constant"
-	case SymbolKindString:
-		return "String"
-	case SymbolKindNumber:
-		return "Number"
-	case SymbolKindBoolean:
-		return "Boolean"
-	case SymbolKindArray:
-		return "Array"
-	case SymbolKindObject:
-		return "Object"
-	case SymbolKindKey:
-		return "Key"
-	case SymbolKindNull:
-		return "Null"
-	case SymbolKindEnumMember:
-		return "EnumMember"
-	case SymbolKindStruct:
-		return "Struct"
-	case SymbolKindEvent:
-		return "Event"
-	case SymbolKindOperator:
-		return "Operator"
-	case SymbolKindTypeParameter:
-		return "TypeParameter"
-	default:
-		return fmt.Sprintf("Unknown (%d)", sk)
+	if name, ok := symbolKindNames[sk]; ok {
+		return name
 	}
+	return fmt.Sprintf("Unknown (%d)", sk)
+}
+
+func ParseSymbolKind(s string) (SymbolKind, error) {
+	for k, v := range symbolKindNames {
+		if v == s {
+			return k, nil
+		}
+	}
+	return 0, fmt.Errorf("unknown symbol kind: %s", s)
 }
 
 type DocumentSymbol struct {

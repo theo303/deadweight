@@ -8,15 +8,16 @@ import (
 	"github.com/theo303/deadweight/lsp"
 )
 
-type Test struct {
-}
-
 type Symbol struct {
 	Position lsp.Position
 	Name     string
 	Kind     lsp.SymbolKind
 
 	IsEmbeddedField bool
+}
+
+func (s Symbol) String() string {
+	return "s"
 }
 
 func NewSymbol(documentSymbol lsp.DocumentSymbol) Symbol {
