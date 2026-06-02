@@ -30,7 +30,7 @@ go install golang.org/x/tools/gopls@latest
 ## Installation
 
 ```bash
-go install github.com/theo303/deadweight/cmd/deadweight@latest
+go install github.com/theo303/deadweight/cmd@latest
 ```
 
 Or clone and build locally:
